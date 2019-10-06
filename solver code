@@ -1,0 +1,693 @@
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.Toolkit;
+import javax.swing.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.border.LineBorder;
+import java.util.concurrent.TimeUnit;
+
+public class version implements ActionListener {
+
+    static BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    static Scanner sc;
+    static int n = 9;
+
+    JFrame f1 = new JFrame("SUDOKU");
+    JLabel lab1 = new JLabel("Choice of mode of input :    ");
+    JRadioButton rb1 = new JRadioButton("Through keyboard");
+    JRadioButton rb2 = new JRadioButton("Read from a CSV file");
+    ButtonGroup bg = new ButtonGroup();
+    JLabel lab2 = new JLabel("Enter the Sudoku grid as a " + n + "x" + n +
+    " array or Enter the file name");
+    JTextField tf1 = new JTextField(100);
+    JButton jb = new JButton("Solve Sudoku");
+    JPanel p1 = new JPanel();
+    JPanel p2 = new JPanel();
+    JPanel p3 = new JPanel();
+
+    static int orig[][] = new int[n][n];//to store the initial array
+    static int copy1[][];//to store changes being made to the initial array
+    static String sol[][];//to store the possible values of each cell
+    static String sol2[][];//to store copy of sol array
+    
+    static int ctr = 0;//counter to count number of cells whose value is fixed
+    static int GRID_SIZE = n;
+    static int SUBGRID_SIZE = (int) Math.sqrt(n); // Size of the sub-grid///
+     // Name-constants for UI control (sizes, colors and fonts)
+    static int CELL_SIZE = 60;     static int CANVAS_WIDTH = CELL_SIZE * GRID_SIZE;
+    static int CANVAS_HEIGHT = CELL_SIZE * GRID_SIZE;
+  // Cell width/height in pixels
+    // Board width/height in pixels
+    static Color OPEN_CELL_BGCOLOR = Color.WHITE;
+    static Color CLOSED_CELL_BGCOLOR = Color.LIGHT_GRAY; // RGB
+    static Color CLOSED_CELL_TEXT = Color.BLACK;
+
+    static Font FONT_NUMBERS = new Font("Monospaced", Font.BOLD, 20);
+    static Font font1 = new Font("SansSerif", Font.PLAIN, 20);
+    static JTextField[][] tfCells = new JTextField[GRID_SIZE][GRID_SIZE];
+    JFrame f2 = new JFrame("Sudoku");
+
+    version() {
+
+        jb.addActionListener(this);//to add ActionListener to the JButton
+        //setting layout of panels
+        p1.setLayout(new FlowLayout(FlowLayout.CENTER));
+        p2.setLayout(new FlowLayout(FlowLayout.CENTER));
+        p3.setLayout(new FlowLayout(FlowLayout.CENTER));
+        //setting font of GUI compenents
+        lab1.setFont(font1);
+        rb1.setFont(font1);
+        rb2.setFont(font1);
+        lab2.setFont(font1);
+        tf1.setFont(font1);
+        jb.setFont(font1);
+        //adding compenents to panels
+        p1.add(lab1);
+        bg.add(rb1);
+        bg.add(rb2);
+        p1.add(rb1);
+        p1.add(rb2);
+        p2.add(lab2);
+        p2.add(tf1);
+        p3.add(jb);
+        //adding panels to frames
+        f1.add(p1);
+        f1.add(p2);
+        f1.add(p3);
+        //defining properties of first frame which takes input
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        f1.setBounds(0, 0, screenSize.width, screenSize.height);
+        f1.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f1.setVisible(true);
+        f1.setLayout(new GridLayout(12, 1));
+        f1.setVisible(true);
+
+        copy1 = new int[n][n];
+        sol = new String[n][n];
+        sol2 = new String[n][n];
+    }
+
+    
+    public void actionPerformed(ActionEvent e) {
+
+        int i, j;
+        String s1 = "";
+
+        if (rb1.getSelectedObjects() != null) {
+            //to extract array given as text from textfield and store it in an array
+            s1 = tf1.getText();
+            int x = 0, y = 0;
+            for (i = 2; i < s1.length(); i += 2) {
+                orig[x][y] = s1.charAt(i) - '0';
+                y++;
+                if (s1.charAt(i + 1) == '}') {
+                    i = i + 2;
+                    x++;
+                    y = 0;
+                    
+                }
+            }
+
+        } else {
+            //to extract CSV file path from textfield  
+            s1 = tf1.getText();
+            try {
+                sc = new Scanner(new BufferedReader(new FileReader(s1)));
+                //accepable file format is - "C:\\Users\\User\\Desktop\\study material\\SEM 5\\ARTIFICIAL INTELLIGENCE\\input.csv";
+            } catch (FileNotFoundException ex) {
+                Logger.getLogger(Sudoku.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+            while (sc.hasNextLine()) {
+                //to store contents of CSV file in an array
+                for (i = 0; i < n; i++) {
+                    String[] line = sc.nextLine().trim().split(",");
+                    for (j = 0; j < line.length; j++) {
+                        orig[i][j] = Integer.parseInt(line[j]);
+                    }
+                }
+            }
+        }
+        //defining properties of the second frame which displays the Sudoku grid
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        f2.setBounds(0, 0, screenSize.width, screenSize.height);
+        f2.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        Container cp = f2.getContentPane();
+        cp.setLayout(new GridLayout(GRID_SIZE, GRID_SIZE));
+         //creating n*n grid of JTextfields
+        for (int row = 0; row < GRID_SIZE; ++row) {
+            for (int col = 0; col < GRID_SIZE; ++col) {
+                tfCells[row][col] = new JTextField(100); // Allocate element of array
+                //beautifying grid to highlight subgrids
+                if (((row == 0 || row == 1 || row == 2 || row == 6 || row == 7 || row == 8) && (col == 0 || col == 1 || col == 2 || col == 6 || col == 7 || col == 8)) || (row == 4 || row == 5 || row == 3) && (col == 4 || col == 5 || col == 3)) {
+                    tfCells[row][col].setBorder(new LineBorder(Color.BLACK, 4));
+                } else {
+                    tfCells[row][col].setBorder(new LineBorder(Color.RED, 4));
+                }
+                cp.add(tfCells[row][col]);//adding the grid cells to content pane
+
+                if (orig[row][col] == 0) {
+                    tfCells[row][col].setText("");     // set to empty string
+                    tfCells[row][col].setEditable(true);
+                    tfCells[row][col].setBackground(OPEN_CELL_BGCOLOR);
+
+                } else {
+                    tfCells[row][col].setText(orig[row][col] + "");
+                    tfCells[row][col].setEditable(false);
+                    tfCells[row][col].setBackground(CLOSED_CELL_BGCOLOR);
+                    tfCells[row][col].setForeground(CLOSED_CELL_TEXT);
+                }
+                // Beautify all the cells
+                tfCells[row][col].setHorizontalAlignment(JTextField.CENTER);
+                tfCells[row][col].setFont(FONT_NUMBERS);
+            }
+        }
+
+        // Set the size of the content-pane and pack all the components
+        //  under this container.
+        cp.setPreferredSize(new Dimension(CANVAS_WIDTH, CANVAS_HEIGHT));
+        f2.pack();
+        f2.setVisible(true);
+        sw.execute();
+        //to invoke StringWorker which is used to perform lengthy
+        //GUI interaction tasks in a background thread. 
+        //It schedules the execution of this lengthy task on a different thread while the GUI still remains responsive.
+        
+
+    }
+    SwingWorker sw = new SwingWorker<String, Void>() {
+        protected String doInBackground() throws Exception {
+            //this function contains the logic of our background task
+            //that runs on a worker thread
+            apply_constraints();//time consuming background task
+            return null;
+        }
+    };
+     //this function contains the logic to apply various heuristics 
+        //to prune search space of Sudoku grid
+    public void apply_constraints() throws InterruptedException {
+       
+        possible_val();
+        int i, j;
+        boolean flag = false;
+        for (i = 0; i < n; i++) {
+            for (j = 0; j < n; j++) {
+                copy1[i][j] = orig[i][j];//to create a copy of original array
+                sol2[i][j] = sol[i][j];//to create a copy of sol array
+            }
+        }
+
+        while (ctr != (n * n)) {//runs if values of all cells are not determined
+            flag = false;
+            eliminate();// apply the heuristic- eliminate strategy
+            if (ctr == (n * n)) { //exit program if all values fixed
+                
+                break;
+            }
+            choicerow(); //apply the heuristic- only choice to all rows
+            choicecol(); // apply the heursitic- only choice to all cols
+            //apply the heursitic- only choice to all subgrids 
+            choicesquare(0, 0);
+            choicesquare(0, 3);
+            choicesquare(0, 6);
+            choicesquare(3, 0);
+            choicesquare(3, 3);
+            choicesquare(3, 6);
+            choicesquare(6, 0);
+            choicesquare(6, 3);
+            choicesquare(6, 6);
+            removetwins(); //apply heuristic- naked twins
+            
+            //if after applying all constraint strategies the new search space of each cell
+            //is same as before, it means that we cannot further reduce the seach space, 
+            //hence we then shift to backtracking
+            for (i = 0; i < n; i++) {
+                for (j = 0; j < n; j++) {
+                    if (sol[i][j] != sol2[i][j]) {
+                        flag = true;
+                        break;
+                    }
+
+                }
+                if (flag == true) {
+                    break;
+                }
+            }
+            if (flag == false) {
+
+                break;
+
+            }
+
+            for (i = 0; i < n; i++) {
+                for (j = 0; j < n; j++) {
+
+                    sol2[i][j] = sol[i][j];//copying the new modified search space to sol2
+                }
+            }
+            
+        }
+        //applying backtracking when some cell values are still not determined and
+        //further search space reduction through the elimination, only choice and
+        //naked twins strategies is not posible
+        if (ctr != (n * n)) {
+            
+            if (backtrack()) {
+                
+            } else {
+                System.out.println("No solution");
+            }
+           
+        }
+    }
+
+    public static void display(int i, int j) throws InterruptedException {
+        //to update the cell values dynamically as soon as they are determined
+        tfCells[i][j].setText(copy1[i][j] + "");
+        tfCells[i][j].setBackground(CLOSED_CELL_BGCOLOR);
+        tfCells[i][j].setEditable(false);
+        TimeUnit.MILLISECONDS.sleep(200);//to add time delay
+        
+    }
+    //this function assigns a list of possible values corresponding to each grid cell
+    //initially, i.e. the already filled cells have their fixed value in the list
+    //while the empty cells have numbers from 1-9 in their list
+    //the function stores list of each cell as a String array
+    public static void possible_val() {
+        int i, j;
+        for (i = 0; i < n; i++) {
+
+            for (j = 0; j < n; j++) {
+
+                if (orig[i][j] == 0) {
+
+                    sol[i][j] = "123456789";
+                } else {
+
+                    sol[i][j] = Integer.toString(orig[i][j]);
+                }
+            }
+        }
+
+    }
+    // this function takes a row no. and col no. as input and determines 
+    // the corresponding subgrid no. corresponding to it
+    //and then returns an array containing the row no. and col no. 
+    //of the first element of the sub grid(3*3)
+    public static int[] unit(int r, int c) {
+        int u = 0;
+        if (r == 0 || r == 1 || r == 2) {
+            u = 1;
+        } else if (r == 3 || r == 4 || r == 5) {
+            u = 4;
+        } else {
+            u = 7;
+        }
+        if (c == 0 || c == 1 || c == 2) {
+            u += 0;
+        } else if (c == 3 || c == 4 || c == 5) {
+            u += 1;
+        } else {
+            u += 2;
+        }
+        int p, q;
+        if (u == 1 || u == 2 || u == 3) {
+            p = 0;
+        } else if (u == 4 || u == 5 || u == 6) {
+            p = 3;
+        } else {
+            p = 6;
+        }
+        if (u % 3 == 0) {
+            q = 6;
+        } else if (u % 3 == 2) {
+            q = 3;
+        } else {
+            q = 0;
+        }
+        int uarr[] = new int[2];
+        uarr[0] = p;
+        uarr[1] = q;
+        return uarr;
+
+    }
+
+    //this function applies the elimination strategy to prune the search space of each grid cell
+    //this constraint function goes through all of the cells with known values and eliminates those values
+    //from the lists of possible values of all its peers
+    public static void eliminate() throws InterruptedException {
+        
+        int i = 0, j = 0;
+        for (i = 0; i < n; i++) {
+
+            for (j = 0; j < n; j++) {
+
+                if ((sol[i][j]).length() == 1) {
+                    ctr++;
+                    copy1[i][j] = Integer.valueOf(sol[i][j]);
+
+                    peers(i, j);
+                    display(i, j);//once a value is fixed, display it
+                   
+
+                }
+            }
+        }
+        
+    }
+    //this function iterates through the peers of a particular cell
+    //row-wise, column-wise and sub-grid wise and then removes the cells values 
+    //from the lists of all its peers
+    public static void peers(int r, int c) {
+        int i = 0, j = 0;
+        int u[] = unit(r, c);
+//to get row no. and col no. of the first cell of the subgrid of the given cell
+        int p = u[0];
+        int q = u[1];
+        for (i = p; i < (p + 3); i++) {
+            for (j = q; j < (q + 3); j++) {
+
+                if (i != r && j != c) {
+                    sol[i][j] = sol[i][j].replace(sol[r][c], "");
+                }
+
+            }
+        }
+        for (i = 0; i < n; i++) {
+
+            if (i != r) {
+                sol[i][c] = sol[i][c].replace(sol[r][c], "");
+            }
+
+        }
+
+        for (j = 0; j < n; j++) {
+
+            if (j != c) {
+                sol[r][j] = sol[r][j].replace(sol[r][c], "");
+            }
+
+        }
+        sol[r][c] = "";
+    }
+    //this constraint function iterates through all the rows and if there's a particular 
+    //number that fits in only one cell in a particular row
+    //then that value is fixed in that particular grid cell
+    //this function checks all rows for all 1-9 numbers
+    public static void choicerow() {
+        int i, j, freq, r = 0, c = 0;
+        int num = 1;
+        for (num = 1; num <= 9; num++) {
+            for (i = 0; i < n; i++) {
+
+                freq = 0;
+                for (j = 0; j < n; j++) {
+                    if (sol[i][j].indexOf((char) (num + 48)) != -1) {
+                        ++freq;
+                        r = i;
+                        c = j;
+                    }
+                    if (freq > 1) {
+                        break;
+                    }
+                }
+                if (freq == 1) {
+                    sol[r][c] = Integer.toString(num);
+                }
+
+            }
+
+        }
+        
+    }
+    //this constraint function iterates through all the columns and if there's a particular 
+    //number that fits in only one cell in a particular col
+    //then that value is fixed in that particular grid cell
+    //this function checks all cols for all 1-9 numbers
+    public static void choicecol() {
+        int i, j, freq, r = 0, c = 0;
+        int num = 1;
+        for (num = 1; num <= 9; num++) {
+            for (j = 0; j < n; j++) {
+
+                freq = 0;
+                for (i = 0; i < n; i++) {
+                    if (sol[i][j].indexOf((char) (num + 48)) != -1) {
+                        ++freq;
+                        r = i;
+                        c = j;
+                    }
+                    if (freq > 1) {
+                        break;
+                    }
+                }
+                if (freq == 1) {
+                    sol[r][c] = Integer.toString(num);
+                }
+
+            }
+
+        }
+        
+    }
+    //this constraint function iterates through all the cells of a particular subgrid
+    //and if there's a particular number that fits in only one cell in a particular subgrid
+    //then that value is fixed in that particular grid cell
+    //this function checks all squares for all 1-9 numbers
+    public static void choicesquare(int k, int t) {
+
+        int i, j, freq = 0, r = 0, c = 0;
+        int num = 1;
+
+        for (num = 1; num <= 9; num++) {
+            freq = 0;
+            for (i = k; i < (k + 3); i++) {
+
+                for (j = t; j < (t + 3); j++) {
+
+                    if (sol[i][j].indexOf((char) (num + 48)) != -1) {
+                        ++freq;
+                        r = i;
+                        c = j;
+                    }
+                    if (freq > 1) {
+                        break;
+                    }
+                }
+
+                if (freq > 1) {
+                    break;
+                }
+            }
+            if (freq == 1) {
+                sol[r][c] = Integer.toString(num);
+            }
+
+        }
+        ;
+    }
+    //this constraint function applies the heuristic- naked twins to further reduce the search space
+    //This function ensures that if in a particular row/col/subgrid, 
+    //there are two cells that have the same two possible values (naked_twins)
+    //then those two values will certainly be in those two boxes 
+    //and so can be removed from the other boxes in the row/col/subgrid
+    
+    public static void removetwins() {
+        int i, j, k, m, x, y;
+        boolean flag = false;
+        m = 0;
+        for (i = 0; i < n; i++) {
+            for (j = 0; j < n; j++) {
+                flag = false;
+                
+                if (sol[i][j].length() == 2) {
+                    //removing twins from a column
+                    for (k = 0; k < n; k++) {
+                        if (sol[k][j].equals(sol[i][j]) && k != i) {
+
+                            flag = true;
+                            break;
+                        }
+                    }
+                    if (flag == true) {
+                        for (m = 0; m < n; m++) {
+                            if (m == i || m == k) {
+                                
+                            } else {
+                                
+                                sol[m][j] = sol[m][j].replace((sol[i][j].charAt(0) + ""), "");
+                                sol[m][j] = sol[m][j].replace((sol[i][j].charAt(1) + ""), "");
+                                
+                            }
+                        }
+                    }
+                    //removing twins from a row
+                    flag = false;
+                    for (k = 0; k < n; k++) {
+                        if (sol[i][k].equals(sol[i][j]) && k != j) {
+                            flag = true;
+
+                            break;
+                        }
+                    }
+                    if (flag == true) {
+                        for (m = 0; m < n; m++) {
+                            if (m == j || m == k) {
+                                
+                            } else {
+
+                                sol[i][m] = sol[i][m].replace((sol[i][j].charAt(0) + ""), "");
+                                sol[i][m] = sol[i][m].replace((sol[i][j].charAt(1) + ""), "");
+                                
+                            }
+                        }
+                    }
+                    
+                    //removing twins from a subgrid
+                    flag = false;
+                    int uarr[] = unit(i, j);
+                    int p = uarr[0];
+                    int q = uarr[1];
+                    for (k = p; k < (p + 3); k++) {
+                        for (m = q; m < (q + 3); m++) {
+                            if (sol[k][m].equals(sol[i][j]) && (k != i || m != j)) {
+                                flag = true;
+                                break;
+                            }
+                        }
+                        if (flag == true) {
+                            break;
+                        }
+                    }
+
+                    if (flag == true) {
+                        for (x = p; x < (p + 3); x++) {
+                            for (y = q; y < (q + 3); y++) {
+                                if ((x == i && y == j) || (x == k && y == m)) {
+                                    
+                                } else {
+                                    sol[x][y] = sol[x][y].replace((sol[i][j].charAt(0) + ""), "");
+                                    sol[x][y] = sol[x][y].replace((sol[i][j].charAt(1) + ""), "");
+                                }
+                            }
+                        }
+                    }
+
+                }
+               
+            }
+        }
+    }
+    
+    //this function checks if it's legal to place a particular number
+    //at a particular grid cell
+    public static boolean isSafe(int row, int col, int num) {
+        
+        for (int d = 0; d < copy1.length; d++) {
+            // if the number we are trying to 
+            // place is already present in 
+            // that row, return false; 
+            if (copy1[row][d] == num) {
+                return false;
+            }
+        }
+
+        
+        for (int r = 0; r < copy1.length; r++) {
+            // if the number we are trying to 
+            // place is already present in 
+            // that column, return false; 
+
+            if (copy1[r][col] == num) {
+                return false;
+            }
+        }
+
+         
+        int sqrt = (int) Math.sqrt(copy1.length);
+        int boxRowStart = row - row % sqrt;
+        int boxColStart = col - col % sqrt;
+
+        for (int r = boxRowStart;
+                r < boxRowStart + sqrt; r++) {
+            for (int d = boxColStart;
+                    d < boxColStart + sqrt; d++) {
+                if (copy1[r][d] == num) {
+                    return false;
+                }
+            }
+        }
+
+        // if there is no clash, it's safe 
+        return true;
+    }
+    //After the search space is reduced the maximum it can be,
+    //we apply backtracking and start assigning numbers to empty cells from their respective lists.
+    //Before assigning a number, we check whether it is safe to assign. 
+    //We basically check that the same number is not present in the current row, current column and current 3X3 subgrid. After checking for safety, we assign the number, and recursively check whether this assignment leads to a solution or not. If the assignment doesn’t lead to a solution, then we try the next number for the current empty cell. 
+    //And if none of the number (1 to 9) leads to a solution, we return false.
+    public static boolean backtrack() throws InterruptedException {
+        int i, j;
+        int row = -1;
+        int col = -1;
+        int x = 0;
+        boolean isEmpty = true;
+        for (i = 0; i < n; i++) {
+            for (j = 0; j < n; j++) {
+                if (copy1[i][j] == 0) {
+                    row = i;
+                    col = j;
+                    x = 0;
+                    // we still have some remaining 
+                    // missing values in Sudoku 
+                    
+                    isEmpty = false;
+                    break;
+                }
+            }
+            if (isEmpty == false) {
+                break;
+            }
+        }
+
+        // no empty space left 
+        if (isEmpty) {
+            return true;
+        }
+       
+        int num;
+        while (x < sol[row][col].length()) {
+            num = Integer.valueOf(sol[row][col].charAt(x) - '0');//to fetch numbers from the list of the cell
+            //to check for validity of the number in that cell
+            if (isSafe(row, col, num)) {
+                
+                copy1[row][col] = num;
+                //to recursively call the backtrack function
+                if (backtrack()) {
+                    display(row, col);//display the fixed values
+                    return true;
+                } else {
+                    copy1[row][col] = 0; // replace it 
+                }
+            }
+            x++;//to move to next possible value in the list
+        }
+
+        return false;
+    }
+
+    public static void main(String args[]) throws IOException {
+        version obj = new version(); //creating an object of version class
+
+    }
+
+    
+}                    
